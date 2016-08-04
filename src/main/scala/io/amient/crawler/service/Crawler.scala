@@ -2,13 +2,12 @@ package io.amient.crawler.service
 
 import java.net.URL
 import java.util.Properties
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{Executors, LinkedBlockingQueue}
 
 import dispatch.Future
 import io.amient.crawler.domain._
 import io.amient.crawler.task.Task
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
@@ -25,6 +24,11 @@ object Crawler {
   val CONFIG_CRAWLER_TIMEOUT_S = "crawler.timeout.s"
 
   /**
+    * Maximum parallel scans that a single instance of crawler may do
+    */
+  val CONFIG_CRAWLER_MAX_PARALLELISM = "crawler.max.paralellism"
+
+  /**
     * Scanner setting for automatically follow to redirected pages
     */
   val CONFIG_SCANNER_FOLLOW_REDIRECTS = "scanner.follow.redirects"
@@ -33,6 +37,8 @@ object Crawler {
     * Number of seconds afte which the cached log files are invalidated
     */
   val CONFIG_TASK_CACHE_TTL_S = "task.cache.ttl.s"
+
+
 }
 
 /**
@@ -48,7 +54,11 @@ class Crawler(scanner: Scanner, config: Properties) {
 
   val crawlPause = config.getProperty(CONFIG_CRAWLER_PAUSE_MS, "1000").toInt milliseconds
   val crawlTimeout = config.getProperty(CONFIG_CRAWLER_TIMEOUT_S, "10").toInt seconds
+  val maxParallelScans = config.getProperty(CONFIG_CRAWLER_MAX_PARALLELISM, "3").toInt
   val targetBase = scanner.target.toString
+
+  //this is the implicit executor for crawl Futures (see function crawl in method stream
+  implicit val context = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(maxParallelScans))
 
   type E[X] = Either[Throwable, X]
 
@@ -78,7 +88,7 @@ class Crawler(scanner: Scanner, config: Properties) {
     }
 
     def crawl(urls: Iterable[URL]) = {
-      var delayMs = 0
+      var delayMs = 0L
       urls.foreach { url =>
         task.markPageAsRequested(url)
         queue.add(Future {
