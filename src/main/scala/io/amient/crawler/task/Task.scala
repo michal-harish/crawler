@@ -130,6 +130,7 @@ case class LoggedTask(target: URL, config: Properties)(processor: (Either[Throwa
     } catch {
       case _: EOFException | _: StreamCorruptedException | _: InvalidClassException =>
         if (pagesVisited.size > 0) println(s"Num. URLs restored as visited: ${pagesVisited.size}")
+        pagesVisited.foreach(page => page.url)
         maybeWriteHeader()
     }
   }

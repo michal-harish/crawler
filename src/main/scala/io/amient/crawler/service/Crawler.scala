@@ -84,7 +84,7 @@ class Crawler(scanner: Scanner, config: Properties) {
     val queue = new LinkedBlockingQueue[Future[E[Page]]]
 
     def linkFilter(link: URL): Boolean = {
-      link.toString.startsWith(targetBase) && (!task.hasPageBeenRequested(link))
+      link.toString.startsWith(targetBase)
     }
 
     def crawl(urls: Iterable[URL]) = {
@@ -115,7 +115,7 @@ class Crawler(scanner: Scanner, config: Properties) {
             throw new IllegalStateException("Already crawled: " + page.url)
           case Right(page) => {
             task.markPageAsVisited(page)
-            val links = page.links.filter(linkFilter)
+            val links = page.links.filter(linkFilter).filter(!task.hasPageBeenRequested(_))
             if (!links.isEmpty) {
               crawl(links)
             }
