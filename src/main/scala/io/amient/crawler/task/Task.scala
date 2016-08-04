@@ -43,7 +43,7 @@ trait Task {
 }
 
 case class LoggedTask(target: URL, config: Properties)(processor: (Either[Throwable, Page]) => Unit)
-  extends Callable[Option[Throwable]] with Task{
+  extends Callable[Option[Throwable]] with Task {
 
   val id = MessageDigest.getInstance("MD5").digest(target.toString.getBytes).map("%02X".format(_)).mkString
 
@@ -67,7 +67,7 @@ case class LoggedTask(target: URL, config: Properties)(processor: (Either[Throwa
       Files.createFile(logfile)
     } else {
       val created = Files.readAttributes(logfile, classOf[BasicFileAttributes]).creationTime()
-      val ageInSeconds = (System.currentTimeMillis() - created.toMillis)/ 1000
+      val ageInSeconds = (System.currentTimeMillis() - created.toMillis) / 1000
       if (ageInSeconds > cacheTtl.toSeconds) {
         println(s"Found previous task for: $target but is too old")
         Files.delete(logfile)
@@ -109,10 +109,15 @@ case class LoggedTask(target: URL, config: Properties)(processor: (Either[Throwa
   }
 
   private def bootstrap(channel: FileChannel): ObjectOutputStream = {
-    def maybeWriteHeader(): ObjectOutputStream = {
-      val oos = new ObjectOutputStream(Channels.newOutputStream(channel))
-      if (pagesVisited.isEmpty) oos.writeObject(target)
-      oos
+    def appendObjectOutputStream(): ObjectOutputStream = new ObjectOutputStream(Channels.newOutputStream(channel)) {
+      override def writeStreamHeader(): Unit = {
+        if (pagesVisited.isEmpty) {
+          super.writeStreamHeader()
+          writeObject(target)
+        } else {
+          reset();
+        }
+      }
     }
     try {
       val iis = new ObjectInputStream(Channels.newInputStream(channel))
@@ -126,12 +131,16 @@ case class LoggedTask(target: URL, config: Properties)(processor: (Either[Throwa
             processor(Right(page))
         }
       }
-      maybeWriteHeader()
+      appendObjectOutputStream()
     } catch {
-      case _: EOFException | _: StreamCorruptedException | _: InvalidClassException =>
+      case e: StreamCorruptedException =>
+        throw new RuntimeException("Log file is corrupt, please delete it: " + logfile)
+
+      case _: EOFException | _: InvalidClassException =>
+
         if (pagesVisited.size > 0) println(s"Num. URLs restored as visited: ${pagesVisited.size}")
         pagesVisited.foreach(page => page.url)
-        maybeWriteHeader()
+        appendObjectOutputStream()
     }
   }
 
