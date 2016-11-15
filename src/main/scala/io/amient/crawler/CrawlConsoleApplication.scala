@@ -24,10 +24,10 @@ object CrawlConsoleApplication extends App {
 
   val config = new Properties {
     put(Crawler.CONFIG_CRAWLER_PAUSE_MS, "1000") //i.e. at most 1 request per second per task
-    put(Crawler.CONFIG_CRAWLER_TIMEOUT_S, "60") //max 1 minutes for any single page to complete
-    put(Crawler.CONFIG_CRAWLER_MAX_PARALLELISM, "10") // crawl max 10 pages at the same time
+    put(Crawler.CONFIG_CRAWLER_TIMEOUT_S, "15") //max 5 seconds for any single page to complete
+    put(Crawler.CONFIG_CRAWLER_MAX_PARALLELISM, "4") // crawl max 10 pages at the same time
     put(Crawler.CONFIG_SCANNER_FOLLOW_REDIRECTS, "true")
-    put(Crawler.CONFIG_TASK_CACHE_TTL_S, "600") //expire tasks after 10 minutes for testing
+    put(Crawler.CONFIG_TASK_CACHE_TTL_S, "86400") //expire tasks after 10 minutes for testing
   }
 
   val executor = Executors.newCachedThreadPool()

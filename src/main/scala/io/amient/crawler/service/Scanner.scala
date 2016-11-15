@@ -43,8 +43,8 @@ abstract class Scanner(val target: URL) {
     for (httpData <- maybeHttpData.right) yield {
       val doc = cleaner.clean(new ByteArrayInputStream(httpData))
       val hash = computeHash(doc)
-      val links = anchorExtractor.extractFrom(doc).map(l => linkToAbsoluteURL(docUrl.toURI, l))
-      val assets = assetExtractor.extractFrom(doc).map(l => linkToAbsoluteURL(docUrl.toURI, l))
+      val links = anchorExtractor.extractFrom(doc).map(l => linkToAbsoluteURL(docUrl.toURI, l)).flatten
+      val assets = assetExtractor.extractFrom(doc).map(l => linkToAbsoluteURL(docUrl.toURI, l)).flatten
       Page(docUrl, hash, links, assets)
     }
   } catch {
@@ -61,7 +61,7 @@ abstract class Scanner(val target: URL) {
     * @param relUrl relative URL to be expanded
     * @return absolut URL as expanded from the relUrl argument relative to the docUri
     */
-  def linkToAbsoluteURL(docUri: URI, relUrl: String): URL = {
+  def linkToAbsoluteURL(docUri: URI, relUrl: String): Option[URL] = {
     val URL_REGEX = "(?i)^(file:|(https?:)?//([a-z0-9\\.-]+))?(/[^\\?#]*?)?([^\\?#/]+)?(\\?.*?)?(#.*)?$".r
     val FILENAME_REGEX = "^(.+?)?([^/]+)?$".r
     val (docPath, docFile) = docUri.getPath match {
@@ -71,7 +71,7 @@ abstract class Scanner(val target: URL) {
     }
     def nn(s: String, r: String = "", e: String = "") = if (s != null) s + r else e
     relUrl match {
-      case URL_REGEX(base, http, host, path, file, query, fragment) => {
+      case URL_REGEX(base, http, host, path, file, query, fragment) =>
         val scheme = if (base == null) docUri.getScheme + ":"
         else if (base == "file:") base
         else if (base.startsWith("//")) docUri.getScheme + ":" else http
@@ -79,12 +79,13 @@ abstract class Scanner(val target: URL) {
         else "//" + docUri.getHost)
         else if (base != "file:") "//" + host else ""
 
-        new URL(scheme + docRoot +
+        Some(new URL(scheme + docRoot +
           nn(path, nn(file) + nn(query) + nn(fragment), nn(docPath,
             nn(file, nn(query) + nn(fragment), nn(docFile,
               nn(query, nn(fragment), nn(docUri.getQuery,
-                nn(fragment, "", nn(docUri.getFragment)), nn(fragment))))))))
-      }
+                nn(fragment, "", nn(docUri.getFragment)), nn(fragment)))))))))
+
+      case _: Any => None
     }
   }
 

@@ -13,7 +13,7 @@ case class Page(url: URL, contentHash: Int, val links: Set[URL], val assets: Set
 
   def info: String =  s"$url | assets: ${assets.size} | links: ${links.size}"
 
-  def report: String = s"$url" + assets.map(u => s"\n\t- $u").mkString
+  def report: String = s"$url" + assets.map(u => s"\n\t- $u").mkString + links.map(u => s"\n\t- $u").mkString
 
   override def toString = s"$url" + assets.map(u => s"\n\t- $u").mkString + links.map(u => s"\n\t[ $u ]").mkString
 
